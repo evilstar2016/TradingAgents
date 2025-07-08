@@ -1,0 +1,158 @@
+@startuml
+' 智能体决策流程时序图
+!theme spacelab
+
+actor User
+participant CLI as "命令行界面"
+participant Config as "配置管理"
+participant MessageBuffer as "消息缓冲区"
+participant Graph as "TradingAgentsGraph"
+participant DataFlow as "数据流接口"
+box "分析师团队" #LightBlue
+participant MarketAnalyst as "市场分析师"
+participant SocialAnalyst as "社交分析师"
+participant NewsAnalyst as "新闻分析师"
+participant FundamentalsAnalyst as "基本面分析师"
+end box
+box "研究团队" #LightGreen
+participant BullResearcher as "多头研究员"
+participant BearResearcher as "空头研究员"
+participant ResearchManager as "研究管理者"
+end box
+participant Trader as "交易员"
+box "风控团队" #LightPink
+participant RiskyDebator as "激进辩手"
+participant NeutralDebator as "中性辩手"
+participant SafeDebator as "保守辩手"
+participant RiskManager as "风控管理者"
+end box
+
+' 初始化阶段
+User -> CLI: 输入分析参数\n(股票代码、日期、分析深度)
+CLI -> Config: 初始化配置
+note right: max_debate_rounds\nmax_risk_discuss_rounds\nLLM配置等
+
+CLI -> Graph: 初始化智能体图结构
+activate Graph
+Graph -> MessageBuffer: 创建消息缓冲区
+Graph -> DataFlow: 初始化数据接口
+deactivate Graph
+
+' 分析师团队阶段
+loop 选中的分析师
+    alt 市场分析
+        CLI -> MarketAnalyst: 请求市场分析
+        activate MarketAnalyst
+        MarketAnalyst -> DataFlow: 获取市场数据
+        DataFlow --> MarketAnalyst: 返回技术指标
+        MarketAnalyst -> MessageBuffer: 更新market_report
+        deactivate MarketAnalyst
+    else 社交分析
+        CLI -> SocialAnalyst: 请求社交分析
+        activate SocialAnalyst
+        SocialAnalyst -> DataFlow: 获取社交媒体数据
+        DataFlow --> SocialAnalyst: 返回情绪分析
+        SocialAnalyst -> MessageBuffer: 更新sentiment_report
+        deactivate SocialAnalyst
+    else 新闻分析
+        CLI -> NewsAnalyst: 请求新闻分析
+        activate NewsAnalyst
+        NewsAnalyst -> DataFlow: 获取新闻数据
+        DataFlow --> NewsAnalyst: 返回新闻分析
+        NewsAnalyst -> MessageBuffer: 更新news_report
+        deactivate NewsAnalyst
+    else 基本面分析
+        CLI -> FundamentalsAnalyst: 请求基本面分析
+        activate FundamentalsAnalyst
+        FundamentalsAnalyst -> DataFlow: 获取财务数据
+        DataFlow --> FundamentalsAnalyst: 返回基本面指标
+        FundamentalsAnalyst -> MessageBuffer: 更新fundamentals_report
+        deactivate FundamentalsAnalyst
+    end
+end
+
+' 研究团队辩论阶段
+loop max_debate_rounds次
+    CLI -> BullResearcher: 多头分析
+    activate BullResearcher
+    BullResearcher -> MessageBuffer: 读取分析报告
+    BullResearcher -> ResearchManager: 提交多头论据
+    deactivate BullResearcher
+
+    CLI -> BearResearcher: 空头分析
+    activate BearResearcher
+    BearResearcher -> MessageBuffer: 读取分析报告
+    BearResearcher -> ResearchManager: 提交空头论据
+    deactivate BearResearcher
+
+    ResearchManager -> ResearchManager: 评估双方论据
+    alt 达成决策
+        ResearchManager -> MessageBuffer: 更新investment_plan
+        break 结束辩论
+    else 需要继续辩论
+        ResearchManager -> BullResearcher: 要求补充论据
+        ResearchManager -> BearResearcher: 要求补充论据
+    end
+end
+
+' 交易方案阶段
+CLI -> Trader: 生成交易方案
+activate Trader
+Trader -> MessageBuffer: 读取投资计划
+Trader -> MessageBuffer: 更新trader_investment_plan
+deactivate Trader
+
+' 风控团队辩论阶段
+loop max_risk_discuss_rounds次
+    group 风险评估 #LightGrey
+        ' 同时发起三方评估
+        CLI ->> RiskyDebator: 发起激进风险评估
+        CLI ->> NeutralDebator: 发起中性风险评估
+        CLI ->> SafeDebator: 发起保守风险评估
+
+        ' 激进辩手评估
+        activate RiskyDebator
+        RiskyDebator -> MessageBuffer: 读取交易方案
+        RiskyDebator -> MessageBuffer: 读取市场分析报告
+        RiskyDebator -> MessageBuffer: 读取社交情绪报告
+        RiskyDebator -> MessageBuffer: 读取新闻报告
+        RiskyDebator -> MessageBuffer: 读取基本面报告
+        note right: 基于高风险高收益视角\n分析各类数据
+        RiskyDebator -> RiskManager: 提交激进评估论据
+        deactivate RiskyDebator
+
+        ' 中性辩手评估
+        activate NeutralDebator
+        NeutralDebator -> MessageBuffer: 读取全部分析报告
+        note right: 平衡风险收益\n进行中立分析
+        NeutralDebator -> RiskManager: 提交中性评估论据
+        deactivate NeutralDebator
+
+        ' 保守辩手评估
+        activate SafeDebator
+        SafeDebator -> MessageBuffer: 读取全部分析报告
+        note right: 侧重风险控制\n关注下行风险
+        SafeDebator -> RiskManager: 提交保守评估论据
+        deactivate SafeDebator
+    end
+
+    RiskManager -> RiskManager: 综合评估三方论据
+    note right: 考虑风险收益比\n评估各方论据质量
+
+    alt 达成风控共识
+        RiskManager -> MessageBuffer: 更新final_trade_decision
+        note right: 记录最终交易决策\n及风控要求
+        break 结束风控评估
+    else 需要进一步讨论
+        RiskManager -> RiskyDebator: 要求补充高收益论据
+        RiskManager -> NeutralDebator: 要求补充平衡性分析
+        RiskManager -> SafeDebator: 要求补充风险分析
+        note right: 进入下一轮辩论
+    end
+end
+
+' 结果输出
+CLI -> MessageBuffer: 获取完整报告
+CLI -> User: 展示分析结果
+
+@enduml
